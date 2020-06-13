@@ -1,0 +1,146 @@
+#!/bin/python
+#-*- coding:utf-8 -*- 
+
+import pdftotext    # PDF를 text로 변환해줍니다.
+import glob         # Directory내 File들을 관리합니다.
+import re           # 정규식
+import csv
+import time
+from tqdm import tqdm, trange
+
+DATA_DIRECTORY = "./"   # PDF File 이 있는 디렉토리
+OUTPUTFILE = DATA_DIRECTORY+"/output.csv"
+result = []
+
+def pdfToDict(filename):
+    resultrow = dict()
+    with open(filename, "rb") as f:
+        pdf = pdftotext.PDF(f)
+        page = "\n\n".join(pdf)
+        try:
+            m = re.compile(r".*업.명\s+(.*)\.*대.*표.*이.*사\s+(.*)").search(page)
+            if m:
+                resultrow['기업명'] = m.group(1).strip()
+                resultrow['대표이사'] = m.group(2).strip()
+            else:
+                resultrow['기업명'] = ""
+                resultrow['대표이사'] = ""
+               
+            m = re.compile(r".*사업자등록번호\s+(.*)\s+설립일자\s+(.*)\s+상시근로자수\s+(.*)명").search(page)
+            if m:
+                resultrow['사업자등록번호'] = m.group(1).strip()
+                resultrow['설립일자'] = m.group(2).strip()
+                resultrow['상시근로자수'] = m.group(3).strip()
+            else:
+                resultrow['사업자등록번호'] = ""
+                resultrow['설립일자'] = ""
+                resultrow['상시근로자수'] = ""
+                
+            m = re.compile(r".*주소\s*(.*)").search(page)
+            if m:
+                resultrow['주소'] = m.group(1).strip()
+            else:
+                resultrow['주소'] = ""
+                
+            re_str = r"매출액\s+(\d+)\s+(\d+)\s+(\d+)\s+총자산\s+(\d+)\s+(\d+)\s+(\d+)\s+"
+            m = re.compile(re_str).search(page)
+            if m:
+                resultrow['매출액1'] = m.group(1).strip()
+                resultrow['매출액2'] = m.group(2).strip()
+                resultrow['매출액3'] = m.group(3).strip()
+                resultrow['총자산1'] = m.group(4).strip()
+                resultrow['총자산2'] = m.group(5).strip()
+                resultrow['총자산3'] = m.group(6).strip()
+            else:
+                resultrow['매출액1'] = ""
+                resultrow['매출액2'] = ""
+                resultrow['매출액3'] = ""
+                resultrow['총자산1'] = ""
+                resultrow['총자산2'] = ""
+                resultrow['총자산3'] = ""
+                
+            re_str = r"영업이익\s+(-?\d+)\s+(-?\d+)\s+(-?\d+)\s+자본총계\s+(-?\d+)\s+(-?\d+)\s+(-?\d+)\s+"
+            m = re.compile(re_str).search(page)
+            if m:
+                resultrow['영업이익1'] = m.group(1).strip()
+                resultrow['영업이익2'] = m.group(2).strip()
+                resultrow['영업이익3'] = m.group(3).strip()
+                resultrow['자본총계1'] = m.group(4).strip()
+                resultrow['자본총계2'] = m.group(5).strip()
+                resultrow['자본총계3'] = m.group(6).strip()
+            else:
+                resultrow['영업이익1'] = ""
+                resultrow['영업이익2'] = ""
+                resultrow['영업이익3'] = ""
+                resultrow['자본총계1'] = ""
+                resultrow['자본총계2'] = ""
+                resultrow['자본총계3'] = ""
+                
+            re_str = r"순이익\s+(-?\d+)\s+(-?\d+)\s+(-?\d+)\s+납입자본금\s+(-?\d+)\s+(-?\d+)\s+(-?\d+)\s+"
+            m = re.compile(re_str).search(page)
+            if m:
+                resultrow['순이익1'] = m.group(1).strip()
+                resultrow['순이익2'] = m.group(2).strip()
+                resultrow['순이익3'] = m.group(3).strip()
+                resultrow['납입자본금1'] = m.group(4).strip()
+                resultrow['납입자본금2'] = m.group(5).strip()
+                resultrow['납입자본금3'] = m.group(6).strip()
+            else:
+                resultrow['순이익1'] = ""
+                resultrow['순이익2'] = ""
+                resultrow['순이익3'] = ""
+                resultrow['납입자본금1'] = ""
+                resultrow['납입자본금2'] = ""
+                resultrow['납입자본금3'] = ""
+                
+            re_str = r"담당자\s+전화/핸드폰(.*)\s+이메일\s+(.*@.*.[a-zA-Z])\s*위와 같이"
+            m = re.compile(re_str).search(page)
+            if m:
+                resultrow['전화'] = m.group(1).strip()
+                resultrow['이메일'] = m.group(2).strip()
+            else:
+                resultrow['전화'] = ""
+                resultrow['이메일'] = ""
+
+            re_str = r"신청합니다.\s+((\d{4})\s*년\s*(\d{1,2})\s*월\s*(\d{1,2})\s*일)\s+신청인\s*:\s*(.*)\s*\(인\)"
+            m = re.compile(re_str).search(page)
+            if m:
+                resultrow['신청인'] = m.group(5).strip()
+            else:
+                resultrow['신청인'] = ""
+            
+        except Exception as e:
+            print (e)
+    result.append(resultrow)
+    return resultrow
+
+def dictToCsv(resultrow):
+    with open(OUTPUTFILE, 'a', encoding='utf-8', newline = "") as f:
+        w = csv.DictWriter(f, resultrow.keys())
+        w.writerow(resultrow)
+        
+if __name__ == "__main__":
+    filelist = glob.glob(DATA_DIRECTORY+'/*.pdf')
+    for filename in filelist:
+#         print ("{} file을 작업중입니다.".format(filename))
+        resultrow = pdfToDict(filename)
+        if resultrow['기업명'] == "" and resultrow['대표이사'] == "" and resultrow['사업자등록번호'] == "":
+            print ('========> {}파일은 PDF 형식이 잘못된 것 같습니다.'.format(filename))     
+
+###     PDF 파일 TXT 분석 변환  
+    tot_sum = 0
+    for i in tqdm(range(0, len(filelist)), desc = '변환 중'):
+        time.sleep(0.01)
+        tot_sum += i
+                        
+    #CSV Clear
+    with open(OUTPUTFILE, 'w', encoding='utf-8', newline = '') as f:
+        w = csv.DictWriter(f, result[0].keys())
+        w.writeheader()
+    for resultrow in result:
+        dictToCsv(resultrow)
+
+    tot_sum = 0
+    for i in tqdm(range(0, 100), desc = '입력 중'):
+        time.sleep(0.2)
+        tot_sum += i
