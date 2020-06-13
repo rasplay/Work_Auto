@@ -1,0 +1,195 @@
+#!/bin/python
+#-*- coding:utf-8 -*- 
+
+import pdftotext    # PDF를 text로 변환해줍니다.
+import glob         # Directory내 File들을 관리합니다.
+import re           # 정규식
+import csv
+import time
+from tqdm import tqdm, trange
+
+DATA_DIRECTORY = "/home/openmake/test_2/"   # PDF File 이 있는 디렉토리
+OUTPUTFILE = DATA_DIRECTORY+"/test.csv"
+result = []
+
+def pdfToDict(filename):
+    resultrow = dict()
+    with open(filename, "rb") as f:
+        pdf = pdftotext.PDF(f)
+        page = "\n\n".join(pdf)
+        try:
+            m = re.compile(r".사업체명\s+(.*)\.*자\s+(.*)\s+홈페이지\s+(.*)").search(page)
+            if m:
+                resultrow['사업체명'] = m.group(1).strip()
+                resultrow['벤처확인'] = m.group(2).strip()
+                resultrow['홈페이지'] = m.group(3).strip()
+            else:
+                resultrow['사업체명'] = ""
+                resultrow['벤처확인'] = ""
+                resultrow['홈페이지'] = ""
+
+            m = re.compile(r".*사업자등\s+(.*)\s+법인등록번호\s+(.*)").search(page)
+            if m:
+                resultrow['사업자등록번호'] = m.group(1).strip()
+                resultrow['법인번호'] = m.group(2).strip()
+            else:
+                resultrow['사업자등록번호'] = ""
+                resultrow['법인번호'] = ""                
+
+            m = re.compile(r".*대표자\s+(.*)\s+상장여부\s+(.*)").search(page)
+            if m:
+                resultrow['대표자'] = m.group(1).strip()
+                resultrow['상장여부'] = m.group(2).strip()
+            else:
+                resultrow['대표자'] = ""
+                resultrow['상장여부'] = ""                
+
+            m = re.compile(r".*근무장소*\s+(.*)").search(page)
+            if m:
+                resultrow['근무장소'] = m.group(1).strip()
+            else:
+                resultrow['근무장소'] = ""                
+                
+            m = re.compile(r".*주소\s+(.*)").search(page)
+            if m:
+                resultrow['주소'] = m.group(1).strip()
+            else:
+                resultrow['주소'] = ""
+
+            m = re.compile(r".*주소\s+(.\d{5})").search(page)
+            if m:
+                resultrow['우편번호'] = m.group(1).strip()
+            else:
+                resultrow['우편번호'] = ""
+                
+            m = re.compile(r".*업종\s+(.*)\s+주요사업내용\s+(.*)").search(page)
+            if m:
+                resultrow['업종'] = m.group(1).strip()
+                resultrow['주요사업내용'] = m.group(2).strip()
+            else:
+                resultrow['업종'] = ""
+                resultrow['주요사업내용'] = ""
+
+            m = re.compile(r".*근로자수\s+(.\d+)").search(page)
+            if m:
+                resultrow['근로자수'] = m.group(1).strip()
+            else:
+                resultrow['근로자수'] = ""
+               
+                
+            m = re.compile(r".*자본금*\s+(.*)\s+.*매출액*\s+(.*)").search(page)
+            if m:
+                resultrow['자본금'] = m.group(1).strip()
+                resultrow['전년도 매출액'] = m.group(2).strip()
+            else:
+                resultrow['자본금'] = ""
+                resultrow['전년도 매출액'] = ""
+
+            m = re.compile(r".*자명\s+(.*)").search(page)
+            if m:
+                resultrow['담당자명'] = m.group(1).strip()
+            else:
+                resultrow['담당자명'] = ""
+
+            m = re.compile(r"s+직급\s+(.*)").search(page)
+            if m:
+                resultrow['직급'] = m.group(1).strip()
+            else:
+                resultrow['직급'] = ""
+
+            m = re.compile(r".*핸드폰\s+(.*)").search(page)
+            if m:
+                resultrow['핸드폰'] = m.group(1).strip()
+            else:
+                resultrow['핸드폰'] = ""
+
+            m = re.compile(r".*이메일\s+(.*)").search(page)
+            if m:
+                resultrow['이메일'] = m.group(1).strip()
+            else:
+                resultrow['이메일'] = ""
+ 
+            m = re.compile(r".*팩스\s+(.*)").search(page)
+            if m:
+                resultrow['팩스'] = m.group(1).strip()
+            else:
+                resultrow['팩스'] = ""
+ 
+            m = re.compile(r".*경력사항\s+(.*)").search(page)
+            if m:
+                resultrow['경력사항'] = m.group(1).strip()
+            else:
+                resultrow['경력사항'] = ""
+  
+            m = re.compile(r".*학력*:*\s+(.*)").search(page)
+            if m:
+                resultrow['최종학력'] = m.group(1).strip()
+            else:
+                resultrow['최종학력'] = "" 
+              
+            m = re.compile(r"s+근무부서*\s+(.*)").search(page)
+            if m:
+                resultrow['근무부서'] = m.group(1).strip()
+            else:
+                resultrow['근무부서'] = ""   
+                              
+            m = re.compile(r".*모집직종*\s+(.*)").search(page)
+            if m:
+                resultrow['모집직종'] = m.group(1).strip()
+            else:
+                resultrow['모집직종'] = ""   
+                              
+            m = re.compile(r".*당업무*\s+(.*)").search(page)
+            if m:
+                resultrow['담당업무'] = m.group(1).strip()
+            else:
+                resultrow['담당업무'] = ""             
+              
+            m = re.compile(r"\s+모집인원 :\s+(.*)").search(page)
+            if m:
+                resultrow['모집인원'] = m.group(1).strip()
+            else:
+                resultrow['모집인원'] = ""   
+                              
+            m = re.compile(r"\s+급여조건\s+(.*)\s+채용인원.\s+(.*)").search(page)
+            if m:
+                resultrow['급여조건'] = m.group(1).strip()
+                resultrow['채용인원'] = m.group(2).strip()
+            else:
+                resultrow['급여조건'] = ""
+                resultrow['채용인원'] = ""
+
+        except Exception as e:
+            print (e)
+    result.append(resultrow)
+    return resultrow
+
+def dictToCsv(resultrow):
+    with open(OUTPUTFILE, 'a', encoding='utf-8', newline = "") as f:
+        w = csv.DictWriter(f, resultrow.keys())
+        w.writerow(resultrow)
+
+if __name__ == "__main__":
+    filelist = glob.glob(DATA_DIRECTORY+'/*.pdf')
+    for filename in filelist:
+        #print ("{} file을 작업중입니다.".format(filename))
+        resultrow = pdfToDict(filename)
+        if resultrow['사업체명'] == "" and resultrow['자'] == "" and resultrow['사업자번호'] == "":
+            print ('========> {}파일은 PDF 형식이 잘못된것 같습니다.'.format(filename))            
+
+    tot_sum = 0
+    for i in tqdm(range(0, len(filelist)), desc = '변환중'):
+        time.sleep(0.01)
+        tot_sum += i            
+            
+    #CSV Clear
+    with open(OUTPUTFILE, 'w', encoding='utf-8', newline = '') as f:
+        w = csv.DictWriter(f, result[0].keys())
+        w.writeheader()
+    for resultrow in result:
+        dictToCsv(resultrow)
+
+    tot_sum = 0
+    for i in tqdm(range(0, len(resultrow)), desc = '입력 중'):
+        time.sleep(0.2)
+        tot_sum += i
