@@ -1,0 +1,6 @@
+import pdftotext
+
+# Load your PDF and Resault Save on Text File
+with open("/home/openmake/test_2/(주)아미코스메틱.pdf", "rb") as f:
+    pdf = pdftotext.PDF(f)
+    print("\n\n".join(pdf))
