@@ -1,0 +1,26 @@
+#-*- coding:utf-8 -*-
+
+import os
+
+import win32com.client as win32
+import win32gui
+
+os.chdir('c:/pdf')
+
+hwp = win32.gencache.EnsureDispatch('HWPFrame.HwpObject')
+hwnd = win32gui.FindWindow(None, '빈 문서 1 - 한글')
+
+win32gui.ShowWindow(hwnd, 0)
+hwp.RegisterModule('FilePathCheckDLL', 'FilePathCheckerModule')
+
+BASE_DIR = 'c:/pdf'
+
+for i in os.listdir():
+    hwp.Open(os.path.join(BASE_DIR, i))
+    hwp.HAction.GetDefault('FileSaveAsPdf', hwp.HParameterSet.HFileOpenSave.HSet)
+    hwp.HParameterSet.HFileOpenSave.filename = os.path.join(BASE_DIR, i.replace('.hwp', '.pdf'))
+    hwp.HParameterSet.HFileOpenSave.Format = 'PDF'
+    hwp.HAction.Execute('FileSaveAsPdf', hwp.HParameterSet.HFileOpenSave.HSet)
+
+hwp.XHwpDocuments.Close(isDirty=False)
+hwp.Quit()
